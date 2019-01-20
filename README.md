@@ -33,5 +33,5 @@ As per usual I will build up this application on git branches.
 
 I created a github repository at https://github.com/gpratte/jwtauth.git
 
-I pushed the code from the SETUP section above to the master branch and then created a 01-setup branch.
+I pushed the code from the SETUP section above to the master branch and then pushed it to a 01-setup branch.
 
