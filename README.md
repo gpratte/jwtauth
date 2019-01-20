@@ -6,9 +6,7 @@ Create a Spring Boot server that
 3. Allows users to login. This endpoint does not require a token but returns a token
 4. Allows the user to get his/her information. Requires token
 5. Allows the admin user to get all users. Requires token
-6. Allows a user to change his/her password. Requires token
-7. Allows the admin user to change a user's password. Requires token
-8. Exercise the endpoints via curl and/or Postman.
+6. Exercise the endpoints via curl and/or Postman.
 
 # SETUP
 
@@ -267,3 +265,45 @@ curl -H "Content-Type: application/json" --user user:62c26eb3-f88b-42a6-88aa-b24
 ```
 
 ##### Push the 04-security-basic-auth branch to github and merge it into master.
+
+
+# GET one and GET many endpoints
+
+##### Create a 05-endpoints-basic-auth branch from master.
+
+### GET
+Add the following endpoints to the controller
+
+```
+@GetMapping("/users")
+public List<User> getAll() {
+    return userService.get();
+}
+
+@GetMapping("/users/{id}")
+public User getOne(@PathVariable Long id) {
+    return userService.get(id);
+}
+```
+
+Add the following methods to the service
+
+```
+public List<User> get() {
+    return userRepository.findAll();
+}
+
+public User get(long id) {
+    return userRepository.findById(id).get();
+}
+```
+
+### curl
+
+```
+curl -H "Content-Type: application/json" --user user:46b2a3d6-9f11-42b2-a55c-70764f31ef3c http://localhost:8080/users
+
+curl -H "Content-Type: application/json" --user user:46b2a3d6-9f11-42b2-a55c-70764f31ef3c http://localhost:8080/users/1
+```
+
+##### Push the 05-endpoints-basic-auth branch to github and merge it into master.
