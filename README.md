@@ -41,7 +41,7 @@ I pushed the code from the SETUP section above to the master branch and then pus
 
 # ADMIN USER
 
-create a 02-admin-user branch from master.
+##### Create a 02-admin-user branch from master.
 
 ### User database table
 In the src/main/resources folder create a data.sql file. Spring Boot will see the H2 dependency and will execute this file on start up.
@@ -125,12 +125,12 @@ public class JwtauthApplication implements CommandLineRunner {
 }
 ```
 
-Push the 02-admin-user branch to github and merge it into master.
+##### Push the 02-admin-user branch to github and merge it into master.
 
 
 # NEW USER
 
-create a 03-new-user branch from master.
+##### Create a 03-new-user branch from master.
 
 ### User service
 Create a com.example.jwtauth.service package.
@@ -200,4 +200,4 @@ public class UserController {
 See the curl-and-postman folder for this curl and a postman file to import into postman.
 
 
-Push the 03-new-user branch to github and merge it into master.
+##### Push the 03-new-user branch to github and merge it into master.
