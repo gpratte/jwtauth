@@ -41,7 +41,7 @@ I pushed the code from the SETUP section above to the master branch and then pus
 
 # ADMIN USER
 
-create a 02-admin-user branch from master.
+##### Create a 02-admin-user branch from master.
 
 ### User database table
 In the src/main/resources folder create a data.sql file. Spring Boot will see the H2 dependency and will execute this file on start up.
@@ -122,6 +122,82 @@ public class JwtauthApplication implements CommandLineRunner {
 		System.out.println(">>>> Users");
 		userRepository.findAll().forEach(System.out::println);
 	}
-}```
+}
+```
 
-Push the 02-admin-user branch to github and merge it into master.
+##### Push the 02-admin-user branch to github and merge it into master.
+
+
+# NEW USER
+
+##### Create a 03-new-user branch from master.
+
+### User service
+Create a com.example.jwtauth.service package.
+
+Create a UserService class
+
+```
+package com.example.jwtauth.service;
+
+import com.example.jwtauth.model.User;
+import com.example.jwtauth.repository.UserRepository;
+import org.springframework.stereotype.Service;
+
+@Service
+public class UserService {
+
+    private final UserRepository userRepository;
+
+    public UserService(UserRepository userRepository) {
+        this.userRepository = userRepository;
+    }
+
+    public User create(User user) {
+        // TODO encrypt password
+        return userRepository.save(user);
+    }
+}
+
+```
+
+### User controller
+Create a com.example.jwtauth.controller package.
+
+Create a UserController class
+
+```
+package com.example.jwtauth.controller;
+
+import com.example.jwtauth.model.User;
+import com.example.jwtauth.service.UserService;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+public class UserController {
+
+    private final UserService userService;
+
+    public UserController(UserService userService) {
+        this.userService = userService;
+    }
+
+    @PostMapping("/users")
+    public User createUser(@RequestBody User user) {
+        return userService.create(user);
+    }
+}
+```
+
+### curl
+`curl -H "Content-Type: application/json" -X POST -d '{
+    "username": "Malcolm",
+    "password": "Reynolds"
+}' http://localhost:8080/users`
+
+See the curl-and-postman folder for this curl and a postman file to import into postman.
+
+
+##### Push the 03-new-user branch to github and merge it into master.
