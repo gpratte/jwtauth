@@ -1,0 +1,41 @@
+{
+	"info": {
+		"_postman_id": "ab66de4b-a3b9-4a47-b040-6e92d4dbaee1",
+		"name": "jwtauth",
+		"description": "Call the Spring Boot server running locally. \n\nSee https://github.com/gpratte/jwtauth",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "create a new user",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "[2018,12,24]"
+				},
+				"url": {
+					"raw": "http://localhost:8080/api/v2/seasons",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"api",
+						"v2",
+						"seasons"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}
