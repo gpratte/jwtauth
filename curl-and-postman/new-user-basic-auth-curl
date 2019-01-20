@@ -1,0 +1,4 @@
+curl -v -H "Content-Type: application/json" --user user:de95ede9-4a15-418a-91c6-a0f72a4a9b81 -d '{
+    "username": "Malcolm",
+    "password": "Reynolds"
+}' http://localhost:8080/users

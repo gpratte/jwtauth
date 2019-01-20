@@ -201,3 +201,69 @@ See the curl-and-postman folder for this curl and a postman file to import into 
 
 
 ##### Push the 03-new-user branch to github and merge it into master.
+
+
+# Basic Authentication
+
+##### Create a 04-security-basic-auth branch from master.
+
+### spring security
+
+Add the spring security dependency to the build.gradle file.
+
+`implementation 'org.springframework.boot:spring-boot-starter-security'`
+
+Run the curl command to try to create a new user and you will see that the http status returned is a 401 Unauthorized. You will probably need to add the -v option to the command to see the return status.
+
+```
+curl -v -H "Content-Type: application/json" -X POST -d '{
+    "username": "Malcolm",
+    "password": "Reynolds"
+}' http://localhost:8080/users
+```
+
+### web security
+
+Create a com.example.jwtauth.security package.
+
+Create a WebSecurity class
+
+```
+package com.example.jwtauth.security;
+
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
+
+@Configuration
+@EnableWebSecurity
+public class WebSecurity extends WebSecurityConfigurerAdapter {
+
+    @Override
+    protected void configure(HttpSecurity http) throws Exception {
+        http.csrf().disable().authorizeRequests()
+            .anyRequest().authenticated()
+            .and().httpBasic();
+    }
+}
+```
+
+This sets the authentication to be basic (and it does other stuff for you to figure out).
+
+### basic auth
+
+In the output logging when server starts up you will see a number something like this
+
+Using generated security password: 3bb88593-f38b-491d-9285-a7a081f2d157
+
+Change the curl to pass the default user name "user" and the password. In this case the curl would be
+
+```
+curl -H "Content-Type: application/json" --user user:62c26eb3-f88b-42a6-88aa-b24b56ade6ce -d '{
+    "username": "Malcolm",
+    "password": "Reynolds"
+}' http://localhost:8080/users
+```
+
+##### Push the 04-security-basic-auth branch to github and merge it into master.
