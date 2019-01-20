@@ -41,7 +41,7 @@ I pushed the code from the SETUP section above to the master branch and then pus
 
 # ADMIN USER
 
-Git: create a 02-admin-user branch from master.
+create a 02-admin-user branch from master.
 
 ### User database table
 In the src/main/resources folder create a data.sql file. Spring Boot will see the H2 dependency and will execute this file on start up.
