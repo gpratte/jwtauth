@@ -1,5 +1,6 @@
 package com.example.jwtauth.security;
 
+import com.sun.xml.internal.bind.v2.TODO;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jws;
 import io.jsonwebtoken.JwtParser;
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Date;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -75,10 +77,13 @@ public class JwtTokenProvider {
 
         final Claims claims = claimsJws.getBody();
 
-        final Collection<? extends GrantedAuthority> authorities =
-            Arrays.stream(claims.get(AUTHORITIES_KEY).toString().split(","))
-                .map(SimpleGrantedAuthority::new)
-                .collect(Collectors.toList());
-        return new UsernamePasswordAuthenticationToken(userDetails, "", authorities);
+//        TODO uncomment when there are roles
+//        final Collection<? extends GrantedAuthority> authorities =
+//            Arrays.stream(claims.get(AUTHORITIES_KEY).toString().split(","))
+//                .map(SimpleGrantedAuthority::new)
+//                .collect(Collectors.toList());
+//        return new UsernamePasswordAuthenticationToken(userDetails, "", authorities);
+
+        return new UsernamePasswordAuthenticationToken(userDetails, "", Collections.emptyList());
     }
 }

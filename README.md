@@ -331,6 +331,29 @@ Add the following to the UserRepository.
 User findByUsername(String username);
 ```
 
+### Encode Password
+
+Change the create method in  the UserService to encode the password.
+
+```
+...
+
+private final BCryptPasswordEncoder bCryptPasswordEncoder;
+
+public UserService(UserRepository userRepository, BCryptPasswordEncoder bCryptPasswordEncoder) {
+    this.userRepository = userRepository;
+    this.bCryptPasswordEncoder = bCryptPasswordEncoder;
+}
+
+...
+
+public User create(User user) {
+    user.setPassword(bCryptPasswordEncoder.encode(user.getPassword()));
+    return userRepository.save(user);
+}
+...
+```
+
 ### UserDetailsService
 
 The Javadoc for this interface says 
@@ -727,5 +750,7 @@ public class WebSecurity extends WebSecurityConfigurerAdapter {
     }
 }
 ```
+
+##### See the curl commands to exercise the endpoints
 
 ##### Push the 06-jwt-auth branch to github and merge it into master.
