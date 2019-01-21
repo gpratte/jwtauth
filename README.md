@@ -867,7 +867,7 @@ Add the following
 
 ### Enhance UserDetailsService 
 
-Enhance the xx of the UserDetailsServiceImpl class to add the roles to the UserDetails
+Enhance the loadUserByUsername method of the UserDetailsServiceImpl class to add the roles to the UserDetails
 
 Replace the loadUserByUsername with the following
 
