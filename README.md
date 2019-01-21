@@ -307,3 +307,421 @@ curl -H "Content-Type: application/json" --user user:46b2a3d6-9f11-42b2-a55c-707
 ```
 
 ##### Push the 05-endpoints-basic-auth branch to github and merge it into master.
+
+
+# JWT Authentication
+
+##### Create a 06-jwt-auth branch from master.
+
+There are a lot of moving parts for JWT authentication.
+
+### JWT token library
+
+Add the following dependency to the build.gradle file.
+
+```
+compile("io.jsonwebtoken:jjwt:0.9.0")
+```
+
+### Repository
+
+The authentication plumbing needs a findByUsername method. Add the following to the UserRepository.
+
+```
+User findByUsername(String username);
+```
+
+### UserDetailsService
+
+The Javadoc for this interface says 
+
+"Core interface which loads user-specific data."
+
+In the service package create a UserDetailsServiceImpl class
+
+```
+package com.example.jwtauth.service;
+
+import com.example.jwtauth.repository.UserRepository;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.stereotype.Service;
+
+import java.util.Collections;
+
+@Service
+public class UserDetailsServiceImpl implements UserDetailsService {
+
+    private final UserRepository userRepository;
+
+    public UserDetailsServiceImpl(UserRepository userRepository) {
+        this.userRepository = userRepository;
+    }
+
+    @Override
+    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+        com.example.jwtauth.model.User user = userRepository.findByUsername(username);
+        if (user == null) {
+            throw new UsernameNotFoundException(username);
+        }
+        return new org.springframework.security.core.userdetails.User(user.getUsername(), user.getPassword(), Collections.emptyList());
+    }
+}
+```
+
+### Password encoder
+
+In the security package create a configuration class to declare the password encoder bean.
+
+```
+package com.example.jwtauth.security;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+
+@Configuration
+public class JwtauthConfig {
+
+    @Bean
+    public BCryptPasswordEncoder bCryptPasswordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
+}
+```
+
+### Constants 
+
+In the security package create the SecurityConstants class
+
+```
+package com.example.jwtauth.security;
+
+public class SecurityConstants {
+    public static final String SIGNING_KEY = "5Lmr5JwJP4CSU";
+    public static final String AUTHORITIES_KEY = "scopes";
+    public static final long ACCESS_TOKEN_VALIDITY_SECONDS = 5*60*60;
+
+    public static final String HEADER_STRING = "Authorization";
+    public static final String TOKEN_PREFIX = "Bearer ";
+    public static final String SIGN_UP_URL = "/users";
+
+}
+```
+
+### JWT token provider
+
+This class does all the JWT specific functions like validating, get the name, get the password, create a token, ... .
+
+In the security package create the JwtTokenProvider class
+
+```
+package com.example.jwtauth.security;
+
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jws;
+import io.jsonwebtoken.JwtParser;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.stereotype.Component;
+
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Date;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+
+import static com.example.jwtauth.security.SecurityConstants.ACCESS_TOKEN_VALIDITY_SECONDS;
+import static com.example.jwtauth.security.SecurityConstants.AUTHORITIES_KEY;
+import static com.example.jwtauth.security.SecurityConstants.SIGNING_KEY;
+
+@Component
+public class JwtTokenProvider {
+    public String getUsernameFromToken(String token) {
+        return getClaimFromToken(token, Claims::getSubject);
+    }
+
+    public Date getExpirationDateFromToken(String token) {
+        return getClaimFromToken(token, Claims::getExpiration);
+    }
+
+    public <T> T getClaimFromToken(String token, Function<Claims, T> claimsResolver) {
+        final Claims claims = getAllClaimsFromToken(token);
+        return claimsResolver.apply(claims);
+    }
+
+    private Claims getAllClaimsFromToken(String token) {
+        return Jwts.parser()
+            .setSigningKey(SIGNING_KEY)
+            .parseClaimsJws(token)
+            .getBody();
+    }
+
+    private Boolean isTokenExpired(String token) {
+        final Date expiration = getExpirationDateFromToken(token);
+        return expiration.before(new Date());
+    }
+
+    public String generateToken(Authentication authentication) {
+        final String authorities = authentication.getAuthorities().stream()
+            .map(GrantedAuthority::getAuthority)
+            .collect(Collectors.joining(","));
+        return Jwts.builder()
+            .setSubject(authentication.getName())
+            .claim(AUTHORITIES_KEY, authorities)
+            .signWith(SignatureAlgorithm.HS256, SIGNING_KEY)
+            .setIssuedAt(new Date(System.currentTimeMillis()))
+            .setExpiration(new Date(System.currentTimeMillis() + ACCESS_TOKEN_VALIDITY_SECONDS * 1000))
+            .compact();
+    }
+
+    public Boolean validateToken(String token, UserDetails userDetails) {
+        final String username = getUsernameFromToken(token);
+        return (username.equals(userDetails.getUsername()) && !isTokenExpired(token));
+    }
+
+    UsernamePasswordAuthenticationToken getAuthentication(final String token, final UserDetails userDetails) {
+
+        final JwtParser jwtParser = Jwts.parser().setSigningKey(SIGNING_KEY);
+
+        final Jws<Claims> claimsJws = jwtParser.parseClaimsJws(token);
+
+        final Claims claims = claimsJws.getBody();
+
+        final Collection<? extends GrantedAuthority> authorities =
+            Arrays.stream(claims.get(AUTHORITIES_KEY).toString().split(","))
+                .map(SimpleGrantedAuthority::new)
+                .collect(Collectors.toList());
+        return new UsernamePasswordAuthenticationToken(userDetails, "", authorities);
+    }
+}
+```
+
+### JWT Authentication Filter
+
+This filter will extend the UsernamePasswordAuthenticationFilter class. By extending Spring's UsernamePasswordAuthenticationFilter Spring will place it in its proper place in the security chain.
+
+In the security package create the JWTAuthenticationFilter class
+
+```
+package com.example.jwtauth.security;
+
+import com.example.jwtauth.model.User;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+
+import javax.servlet.FilterChain;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.util.ArrayList;
+
+import static com.example.jwtauth.security.SecurityConstants.HEADER_STRING;
+import static com.example.jwtauth.security.SecurityConstants.TOKEN_PREFIX;
+
+public class JWTAuthenticationFilter extends UsernamePasswordAuthenticationFilter {
+    private final AuthenticationManager authenticationManager;
+    private final JwtTokenProvider JwtTokenProvider;
+
+
+    public JWTAuthenticationFilter(AuthenticationManager authenticationManager, JwtTokenProvider JwtTokenProvider) {
+        this.authenticationManager = authenticationManager;
+        this.JwtTokenProvider = JwtTokenProvider;
+    }
+
+    @Override
+    public Authentication attemptAuthentication(HttpServletRequest req,
+                                                HttpServletResponse res) throws AuthenticationException {
+        try {
+            User user = new ObjectMapper()
+                .readValue(req.getInputStream(), User.class);
+
+            return authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(
+                    user.getUsername(),
+                    user.getPassword(),
+                    new ArrayList<>())
+            );
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Override
+    protected void successfulAuthentication(HttpServletRequest req,
+                                            HttpServletResponse res,
+                                            FilterChain chain,
+                                            Authentication auth) throws IOException, ServletException {
+        final String token = JwtTokenProvider.generateToken(auth);
+        res.addHeader(HEADER_STRING, TOKEN_PREFIX + token);
+    }
+}
+```
+
+### JWT Authorization Filter
+
+This filter will extend the BasicAuthenticationFilter class. 
+
+The Javadoc for the BasicAuthenticationFilter says
+
+"Processes a HTTP request's BASIC authorization headers, putting the result into the SecurityContextHolder."
+
+In the security package create the JWTAuthorizationFilter class
+
+```
+package com.example.jwtauth.security;
+
+import com.example.jwtauth.service.UserDetailsServiceImpl;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.SignatureException;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
+
+import javax.servlet.FilterChain;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
+
+import static com.example.jwtauth.security.SecurityConstants.HEADER_STRING;
+import static com.example.jwtauth.security.SecurityConstants.TOKEN_PREFIX;
+
+public class JWTAuthorizationFilter extends BasicAuthenticationFilter {
+
+    private final JwtTokenProvider jwtTokenProvider;
+    private final UserDetailsServiceImpl userDetailsService;
+
+    JWTAuthorizationFilter(AuthenticationManager authManager, JwtTokenProvider jwtTokenProvider, UserDetailsServiceImpl userDetailsService) {
+        super(authManager);
+        this.jwtTokenProvider = jwtTokenProvider;
+        this.userDetailsService = userDetailsService;
+    }
+
+    @Override
+    protected void doFilterInternal(HttpServletRequest req,
+                                    HttpServletResponse res,
+                                    FilterChain chain) throws IOException, ServletException {
+        String header = req.getHeader(HEADER_STRING);
+
+        if (header == null || !header.startsWith(TOKEN_PREFIX)) {
+            chain.doFilter(req, res);
+            return;
+        }
+
+        UsernamePasswordAuthenticationToken authentication = getAuthentication(req);
+
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+        chain.doFilter(req, res);
+    }
+
+    private UsernamePasswordAuthenticationToken getAuthentication(HttpServletRequest request) {
+
+        String username = null;
+        String jwtToken = null;
+        String header = request.getHeader(HEADER_STRING);
+        if (header != null && header.startsWith(TOKEN_PREFIX)) {
+            jwtToken = header.replace(TOKEN_PREFIX,"");
+            try {
+                username = jwtTokenProvider.getUsernameFromToken(jwtToken);
+            } catch (IllegalArgumentException e) {
+                logger.error("an error occured during getting username from token", e);
+            } catch (ExpiredJwtException e) {
+                logger.warn("the token is expired and not valid anymore", e);
+            } catch(SignatureException e){
+                logger.error("Authentication Failed. Username or Password not valid.");
+            }
+        } else {
+            logger.warn("couldn't find bearer string, will ignore the header");
+        }
+
+        if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+
+            UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+
+            if (jwtTokenProvider.validateToken(jwtToken, userDetails)) {
+                return jwtTokenProvider.getAuthentication(jwtToken, userDetails);
+            }
+        }
+
+        return null;
+    }
+
+}
+```
+
+### Web Security
+
+Update the WebSecurity class to use the new filters and service
+
+```
+package com.example.jwtauth.security;
+
+import com.example.jwtauth.service.UserDetailsServiceImpl;
+import org.springframework.context.annotation.Bean;
+import org.springframework.http.HttpMethod;
+import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import static com.example.jwtauth.security.SecurityConstants.SIGN_UP_URL;
+
+@EnableWebSecurity
+public class WebSecurity extends WebSecurityConfigurerAdapter {
+
+    private final UserDetailsServiceImpl userDetailsService;
+    private final BCryptPasswordEncoder bCryptPasswordEncoder;
+    private final JwtTokenProvider jwtTokenProvider;
+
+    public WebSecurity(UserDetailsServiceImpl userDetailsService, BCryptPasswordEncoder bCryptPasswordEncoder, JwtTokenProvider jwtTokenProvider) {
+        this.userDetailsService = userDetailsService;
+        this.bCryptPasswordEncoder = bCryptPasswordEncoder;
+        this.jwtTokenProvider = jwtTokenProvider;
+    }
+
+    @Override
+    protected void configure(HttpSecurity http) throws Exception {
+        http.cors().and().csrf().disable().authorizeRequests()
+            .antMatchers(HttpMethod.POST, SIGN_UP_URL).permitAll()
+            .anyRequest().authenticated()
+            .and()
+            .addFilter(new JWTAuthenticationFilter(authenticationManager(), jwtTokenProvider))
+            .addFilter(new JWTAuthorizationFilter(authenticationManager(), jwtTokenProvider, userDetailsService))
+            // this disables session creation on Spring Security
+            .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS);
+    }
+
+    @Override
+    public void configure(AuthenticationManagerBuilder auth) throws Exception {
+        auth.userDetailsService(userDetailsService).passwordEncoder(bCryptPasswordEncoder);
+    }
+
+    @Bean
+    CorsConfigurationSource corsConfigurationSource() {
+        final UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", new CorsConfiguration().applyPermitDefaultValues());
+        return source;
+    }
+}
+```
+
+##### Push the 06-jwt-auth branch to github and merge it into master.
