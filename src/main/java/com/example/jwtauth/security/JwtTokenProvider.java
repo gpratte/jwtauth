@@ -1,6 +1,5 @@
 package com.example.jwtauth.security;
 
-import com.sun.xml.internal.bind.v2.TODO;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jws;
 import io.jsonwebtoken.JwtParser;
@@ -77,13 +76,10 @@ public class JwtTokenProvider {
 
         final Claims claims = claimsJws.getBody();
 
-//        TODO uncomment when there are roles
-//        final Collection<? extends GrantedAuthority> authorities =
-//            Arrays.stream(claims.get(AUTHORITIES_KEY).toString().split(","))
-//                .map(SimpleGrantedAuthority::new)
-//                .collect(Collectors.toList());
-//        return new UsernamePasswordAuthenticationToken(userDetails, "", authorities);
-
-        return new UsernamePasswordAuthenticationToken(userDetails, "", Collections.emptyList());
+        final Collection<? extends GrantedAuthority> authorities =
+            Arrays.stream(claims.get(AUTHORITIES_KEY).toString().split(","))
+                .map(SimpleGrantedAuthority::new)
+                .collect(Collectors.toList());
+        return new UsernamePasswordAuthenticationToken(userDetails, "", authorities);
     }
 }

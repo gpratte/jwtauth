@@ -2,6 +2,7 @@ package com.example.jwtauth.controller;
 
 import com.example.jwtauth.model.User;
 import com.example.jwtauth.service.UserService;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -24,6 +25,7 @@ public class UserController {
         return userService.create(user);
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/users")
     public List<User> getAll() {
         return userService.get();
