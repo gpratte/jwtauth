@@ -48,7 +48,7 @@ In the src/main/resources folder create a data.sql file. Spring Boot will see th
 drop table if exists user;
 create table user (id int not null auto_increment, username varchar(255), password varchar(255), primary key (id));
 -- password is password1
-INSERT INTO user (id, username, password) VALUES (1, 'admin1', '$2a$04$Ye7/lJoJin6.m9sOJZ9ujeTgHEVM4VXgI2Ingpsnf9gXyXEXf/IlW');
+INSERT INTO user (id, username, password) VALUES (1, 'admin1', '$2a$10$qXQo4z4oXKPEKyYO7bAQmOQ9PhIcHK4LOo/L1U9j/xkLEmseLWECK');
 ```
 
 ### User model
@@ -258,7 +258,7 @@ Using generated security password: 3bb88593-f38b-491d-9285-a7a081f2d157
 Change the curl to pass the default user name "user" and the password. In this case the curl would be
 
 ```
-curl -H "Content-Type: application/json" --user user:62c26eb3-f88b-42a6-88aa-b24b56ade6ce -d '{
+curl -H "Content-Type: application/json" --user user:3bb88593-f38b-491d-9285-a7a081f2d157 -d '{
     "username": "Malcolm",
     "password": "Reynolds"
 }' http://localhost:8080/users
@@ -325,7 +325,7 @@ compile("io.jsonwebtoken:jjwt:0.9.0")
 
 ### Repository
 
-The authentication plumbing needs a findByUsername method. Add the following to the UserRepository.
+Add the following to the UserRepository.
 
 ```
 User findByUsername(String username);
@@ -336,6 +336,8 @@ User findByUsername(String username);
 The Javadoc for this interface says 
 
 "Core interface which loads user-specific data."
+
+The loadUserByUsername method will be called by the authentication plumbing.
 
 In the service package create a UserDetailsServiceImpl class
 
@@ -506,6 +508,8 @@ public class JwtTokenProvider {
 ### JWT Authentication Filter
 
 This filter will extend the UsernamePasswordAuthenticationFilter class. By extending Spring's UsernamePasswordAuthenticationFilter Spring will place it in its proper place in the security chain.
+
+This class extends the UsernamePasswordAuthenticationFilter and hence Spring will provide a login endpoint.
 
 In the security package create the JWTAuthenticationFilter class
 
