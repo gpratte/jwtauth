@@ -851,6 +851,20 @@ public class Role {
 }
 ```
 
+### User has Roles
+
+Enhance the User model class to include the Role(s) for the user.
+
+Add the following
+
+```
+    @ManyToMany(fetch = FetchType.EAGER, cascade = CascadeType.ALL)
+    @JoinTable(name = "USER_ROLES", joinColumns = {
+        @JoinColumn(name = "USER_ID") }, inverseJoinColumns = {
+        @JoinColumn(name = "ROLE_ID") })
+    private Set<Role> roles;
+```
+
 ### Enhance UserDetailsService 
 
 Enhance the xx of the UserDetailsServiceImpl class to add the roles to the UserDetails
