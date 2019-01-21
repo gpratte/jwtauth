@@ -754,3 +754,31 @@ public class WebSecurity extends WebSecurityConfigurerAdapter {
 ##### See the curl commands to exercise the endpoints
 
 ##### Push the 06-jwt-auth branch to github and merge it into master.
+
+
+# Return token in body
+
+##### Create a 07-token-in-body branch from master.
+
+### Change the successfulAuthentication in the JWTAuthenticationFilter class
+
+```
+    @Override
+    protected void successfulAuthentication(HttpServletRequest req,
+                                            HttpServletResponse res,
+                                            FilterChain chain,
+                                            Authentication auth) throws IOException, ServletException {
+        final String token = JwtTokenProvider.generateToken(auth);
+
+        // return token in header
+        //res.addHeader(HEADER_STRING, TOKEN_PREFIX + token);
+
+        // return token in body as json
+        res.setContentType("application/json");
+        res.setCharacterEncoding("UTF-8");
+        res.getWriter().write("{\"token\":\"" + token + "\"}"
+        );
+    }
+```
+
+##### Push the 07-token-in-body branch to github and merge it into master.

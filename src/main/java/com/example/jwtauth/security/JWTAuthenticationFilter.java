@@ -52,6 +52,14 @@ public class JWTAuthenticationFilter extends UsernamePasswordAuthenticationFilte
                                             FilterChain chain,
                                             Authentication auth) throws IOException, ServletException {
         final String token = JwtTokenProvider.generateToken(auth);
-        res.addHeader(HEADER_STRING, TOKEN_PREFIX + token);
+
+        // return token in header
+        //res.addHeader(HEADER_STRING, TOKEN_PREFIX + token);
+
+        // return token in body as json
+        res.setContentType("application/json");
+        res.setCharacterEncoding("UTF-8");
+        res.getWriter().write("{\"token\":\"" + token + "\"}"
+        );
     }
 }
