@@ -782,3 +782,142 @@ public class WebSecurity extends WebSecurityConfigurerAdapter {
 ```
 
 ##### Push the 07-token-in-body branch to github and merge it into master.
+
+
+# Role Base Authorization
+
+##### Create a 08-role-based-authZ branch from master.
+
+### New database tables
+
+Need a roles table and a many-to-many user roles table. Make the data.sql look like the following
+
+```
+drop table if exists user_roles;
+drop table if exists role;
+drop table if exists user;
+
+create table user (id bigint not null auto_increment, username varchar(255), password varchar(255), primary key (id));
+
+-- password is password
+INSERT INTO user (id, username, password) VALUES (1, 'admin', '$2a$10$qXQo4z4oXKPEKyYO7bAQmOQ9PhIcHK4LOo/L1U9j/xkLEmseLWECK');
+
+-- password is password
+INSERT INTO user (id, username, password) VALUES (2, 'Bob', '$2a$10$qXQo4z4oXKPEKyYO7bAQmOQ9PhIcHK4LOo/L1U9j/xkLEmseLWECK');
+
+create table role (id bigint auto_increment, description varchar(255), name varchar(255), primary key (id));
+
+INSERT INTO role (id, description, name) VALUES (1, 'Admin role', 'ADMIN');
+INSERT INTO role (id, description, name) VALUES (2, 'User role', 'USER');
+
+create table user_roles (user_id bigint not null, role_id bigint not null, primary key (user_id, role_id));
+
+alter table user_roles add constraint fk_role_id foreign key (role_id) references role (id);
+
+alter table user_roles add constraint fk_user_id foreign key (user_id) references user (id);
+
+INSERT INTO user_roles (user_id, role_id) VALUES (1, 1);
+INSERT INTO user_roles (user_id, role_id) VALUES (2, 2);
+```
+
+### Add a Role model 
+
+Add a Role class to the model
+
+```
+package com.example.jwtauth.model;
+
+import lombok.Data;
+
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.GeneratedValue;
+import javax.persistence.GenerationType;
+import javax.persistence.Id;
+
+@Data
+@Entity
+public class Role {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private long id;
+
+    @Column
+    private String name;
+
+    @Column
+    private String description;
+}
+```
+
+### Enhance UserDetailsService 
+
+Enhance the xx of the UserDetailsServiceImpl class to add the roles to the UserDetails
+
+Replace the loadUserByUsername with the following
+
+```
+    @Override
+    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+        com.example.jwtauth.model.User user = userRepository.findByUsername(username);
+        if (user == null) {
+            throw new UsernameNotFoundException(username);
+        }
+        return new org.springframework.security.core.userdetails.User(user.getUsername(), user.getPassword(), getAuthority(user));
+    }
+
+    private Set<SimpleGrantedAuthority> getAuthority(User user) {
+        Set<SimpleGrantedAuthority> authorities = new HashSet<>();
+        user.getRoles().forEach(role -> {
+            authorities.add(new SimpleGrantedAuthority("ROLE_" + role.getName()));
+        });
+        return authorities;
+    }
+```
+
+### Enhance the token generation
+
+Enhance the token generation to add the roles as GrantedAuthority.
+
+Replace the getAuthentication method with the following
+
+```
+    UsernamePasswordAuthenticationToken getAuthentication(final String token, final UserDetails userDetails) {
+
+        final JwtParser jwtParser = Jwts.parser().setSigningKey(SIGNING_KEY);
+
+        final Jws<Claims> claimsJws = jwtParser.parseClaimsJws(token);
+
+        final Claims claims = claimsJws.getBody();
+
+        final Collection<? extends GrantedAuthority> authorities =
+            Arrays.stream(claims.get(AUTHORITIES_KEY).toString().split(","))
+                .map(SimpleGrantedAuthority::new)
+                .collect(Collectors.toList());
+        return new UsernamePasswordAuthenticationToken(userDetails, "", authorities);
+    }
+```
+
+### Enable role based authorization
+
+Add the following annotation to the WebSecurity class
+
+```
+@EnableGlobalMethodSecurity(prePostEnabled = true)
+```
+
+### Restrict get all users to role ADMIN
+
+Add the following annotation to the getAll method in the controller. Spring security will reject any user that does not an ADMIN role.
+
+```
+    @PreAuthorize("hasRole('ADMIN')")
+```
+
+### Test
+Login as user admin and call the get all endpoint. It should be allowed.
+
+Login as user Bob and call the get all endpoint. It should be rejected with a status 403 Forbidden.
+
+##### Push the 08-role-based-authZ to github and merge it into master.
